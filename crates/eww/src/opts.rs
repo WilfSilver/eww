@@ -86,6 +86,9 @@ pub enum ActionWithServer {
     /// Update the value of a variable, in a running eww instance
     #[clap(name = "update", alias = "u")]
     Update {
+        #[clap(long)]
+        window: Option<String>,
+
         /// variable_name="new_value"-pairs that will be updated
         #[arg(value_parser = parse_var_update_arg)]
         mappings: Vec<(VarName, DynVal)>,
@@ -246,7 +249,7 @@ impl ActionWithServer {
 
     pub fn into_daemon_command(self) -> (app::DaemonCommand, Option<daemon_response::DaemonResponseReceiver>) {
         let command = match self {
-            ActionWithServer::Update { mappings } => app::DaemonCommand::UpdateVars(mappings),
+            ActionWithServer::Update { window, mappings } => app::DaemonCommand::UpdateVars(window, mappings),
             ActionWithServer::OpenInspector => app::DaemonCommand::OpenInspector,
 
             ActionWithServer::KillServer => app::DaemonCommand::KillServer,

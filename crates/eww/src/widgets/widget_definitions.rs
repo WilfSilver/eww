@@ -562,6 +562,7 @@ fn build_gtk_overlay(bargs: &mut BuilderArgs) -> Result<gtk::Overlay> {
                 build_gtk_widget(
                     bargs.scope_graph,
                     bargs.widget_defs.clone(),
+                    bargs.super_scope,
                     bargs.calling_scope,
                     child.clone(),
                     bargs.custom_widget_invocation.clone(),
@@ -609,6 +610,7 @@ fn build_center_box(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
                 build_gtk_widget(
                     bargs.scope_graph,
                     bargs.widget_defs.clone(),
+                    bargs.super_scope,
                     bargs.calling_scope,
                     child.clone(),
                     bargs.custom_widget_invocation.clone(),
@@ -886,6 +888,7 @@ fn build_gtk_literal(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
 
     let widget_defs = bargs.widget_defs.clone();
     let calling_scope = bargs.calling_scope;
+    let super_scope = bargs.super_scope;
 
     def_widget!(bargs, scope_graph, gtk_widget, {
         // @prop content - inline yuck that will be rendered as a widget.
@@ -907,7 +910,7 @@ fn build_gtk_literal(bargs: &mut BuilderArgs) -> Result<gtk::Box> {
                 let content_widget_use = content_widget_use?;
 
                 // TODO a literal should create a new scope, that I'm not even sure should inherit from root
-                let child_widget = build_gtk_widget(scope_graph, widget_defs.clone(), calling_scope, content_widget_use, None)
+                let child_widget = build_gtk_widget(scope_graph, widget_defs.clone(), super_scope, calling_scope, content_widget_use, None)
                     .map_err(|e| {
                         let diagnostic = error_handling_ctx::anyhow_err_to_diagnostic(&e)
                             .unwrap_or_else(|| gen_diagnostic!(e))

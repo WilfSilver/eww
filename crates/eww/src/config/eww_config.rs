@@ -29,6 +29,7 @@ pub struct EwwConfig {
     widgets: HashMap<String, WidgetDefinition>,
     windows: HashMap<String, WindowDefinition>,
     initial_variables: HashMap<VarName, DynVal>,
+    per_window_initial_variables: HashMap<VarName, DynVal>,
     script_vars: HashMap<VarName, ScriptVarDefinition>,
 
     // map of variables to all pollvars which refer to them in their run-while-expression
@@ -77,7 +78,14 @@ impl EwwConfig {
         Ok(EwwConfig {
             windows: window_definitions,
             widgets: widget_definitions,
-            initial_variables: var_definitions.into_iter().map(|(k, v)| (k, v.initial_value)).collect(),
+            initial_variables: var_definitions
+                .iter()
+                .filter_map(|(k, v)| if !v.per_window { Some((k.clone(), v.initial_value.clone())) } else { None })
+                .collect(),
+            per_window_initial_variables: var_definitions
+                .iter()
+                .filter_map(|(k, v)| if v.per_window { Some((k.clone(), v.initial_value.clone())) } else { None })
+                .collect(),
             script_vars,
             run_while_mentions,
         })
@@ -119,5 +127,9 @@ impl EwwConfig {
     /// Given a variable name, get the names of all variables that reference that variable in their run-while (active/inactive) state
     pub fn get_run_while_mentions_of(&self, name: &VarName) -> Option<&Vec<VarName>> {
         self.run_while_mentions.get(name)
+    }
+
+    pub fn get_per_window_variables(&self) -> &HashMap<VarName, DynVal> {
+        &self.per_window_initial_variables
     }
 }

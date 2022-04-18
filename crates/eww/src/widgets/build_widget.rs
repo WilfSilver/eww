@@ -32,6 +32,7 @@ use crate::{
 use super::widget_definitions::{resolve_orientable_attrs, resolve_range_attrs, resolve_widget_attrs};
 
 pub struct BuilderArgs<'a> {
+    pub super_scope: ScopeIndex,
     pub calling_scope: ScopeIndex,
     pub widget_use: BasicWidgetUse,
     pub scope_graph: &'a mut ScopeGraph,
@@ -49,13 +50,14 @@ pub struct BuilderArgs<'a> {
 pub fn build_gtk_widget(
     graph: &mut ScopeGraph,
     widget_defs: Rc<HashMap<String, WidgetDefinition>>,
+    super_scope: ScopeIndex,
     calling_scope: ScopeIndex,
     widget_use: WidgetUse,
     custom_widget_invocation: Option<Rc<CustomWidgetInvocation>>,
 ) -> Result<gtk::Widget> {
     match widget_use {
         WidgetUse::Basic(widget_use) => {
-            build_basic_gtk_widget(graph, widget_defs, calling_scope, widget_use, custom_widget_invocation)
+            build_basic_gtk_widget(graph, widget_defs, super_scope, calling_scope, widget_use, custom_widget_invocation)
         }
         WidgetUse::Loop(_) | WidgetUse::Children(_) => Err(anyhow::anyhow!(DiagError(gen_diagnostic! {
             msg = "This widget can only be used as a child of some container widget such as box",
@@ -68,6 +70,7 @@ pub fn build_gtk_widget(
 fn build_basic_gtk_widget(
     graph: &mut ScopeGraph,
     widget_defs: Rc<HashMap<String, WidgetDefinition>>,
+    super_scope: ScopeIndex,
     calling_scope: ScopeIndex,
     mut widget_use: BasicWidgetUse,
     custom_widget_invocation: Option<Rc<CustomWidgetInvocation>>,
@@ -89,13 +92,14 @@ fn build_basic_gtk_widget(
             })
             .collect::<Result<HashMap<_, _>>>()?;
 
-        let root_index = graph.root_index;
+        // let root_index = graph.root_index;
         let new_scope_index =
-            graph.register_new_scope(widget_use.name, Some(root_index), calling_scope, widget_use_attributes)?;
+            graph.register_new_scope(widget_use.name, Some(super_scope), calling_scope, widget_use_attributes)?;
 
         let gtk_widget = build_gtk_widget(
             graph,
             widget_defs,
+            super_scope,
             new_scope_index,
             custom_widget.widget.clone(),
             Some(Rc::new(CustomWidgetInvocation { scope: calling_scope, children: widget_use.children })),
@@ -108,7 +112,7 @@ fn build_basic_gtk_widget(
         });
         Ok(gtk_widget)
     } else {
-        build_builtin_gtk_widget(graph, widget_defs, calling_scope, widget_use, custom_widget_invocation)
+        build_builtin_gtk_widget(graph, widget_defs, super_scope, calling_scope, widget_use, custom_widget_invocation)
     }
 }
 
@@ -123,6 +127,7 @@ fn build_basic_gtk_widget(
 fn build_builtin_gtk_widget(
     graph: &mut ScopeGraph,
     widget_defs: Rc<HashMap<String, WidgetDefinition>>,
+    super_scope: ScopeIndex,
     calling_scope: ScopeIndex,
     widget_use: BasicWidgetUse,
     custom_widget_invocation: Option<Rc<CustomWidgetInvocation>>,
@@ -130,6 +135,7 @@ fn build_builtin_gtk_widget(
     let mut bargs = BuilderArgs {
         unhandled_attrs: widget_use.attrs.attrs.clone(),
         scope_graph: graph,
+        super_scope,
         calling_scope,
         widget_use,
         widget_defs,
@@ -146,6 +152,7 @@ fn build_builtin_gtk_widget(
             populate_widget_children(
                 bargs.scope_graph,
                 bargs.widget_defs.clone(),
+                super_scope,
                 calling_scope,
                 gtk_container,
                 bargs.widget_use.children.clone(),
@@ -178,6 +185,7 @@ fn build_builtin_gtk_widget(
 fn populate_widget_children(
     tree: &mut ScopeGraph,
     widget_defs: Rc<HashMap<String, WidgetDefinition>>,
+    super_scope: ScopeIndex,
     calling_scope: ScopeIndex,
     gtk_container: &gtk::Container,
     widget_use_children: Vec<WidgetUse>,
@@ -189,6 +197,7 @@ fn populate_widget_children(
                 build_children_special_widget(
                     tree,
                     widget_defs.clone(),
+                    super_scope,
                     calling_scope,
                     child,
                     gtk_container,
@@ -199,6 +208,7 @@ fn populate_widget_children(
                 build_loop_special_widget(
                     tree,
                     widget_defs.clone(),
+                    super_scope,
                     calling_scope,
                     child,
                     gtk_container,
@@ -206,8 +216,14 @@ fn populate_widget_children(
                 )?;
             }
             _ => {
-                let child_widget =
-                    build_gtk_widget(tree, widget_defs.clone(), calling_scope, child, custom_widget_invocation.clone())?;
+                let child_widget = build_gtk_widget(
+                    tree,
+                    widget_defs.clone(),
+                    super_scope,
+                    calling_scope,
+                    child,
+                    custom_widget_invocation.clone(),
+                )?;
                 gtk_container.add(&child_widget);
             }
         }
@@ -218,6 +234,7 @@ fn populate_widget_children(
 fn build_loop_special_widget(
     tree: &mut ScopeGraph,
     widget_defs: Rc<HashMap<String, WidgetDefinition>>,
+    super_scope: ScopeIndex,
     calling_scope: ScopeIndex,
     widget_use: LoopWidgetUse,
     gtk_container: &gtk::Container,
@@ -264,7 +281,7 @@ fn build_loop_special_widget(
                         )?;
                         created_child_scopes.push(scope);
                         let new_child_widget =
-                            build_gtk_widget(tree, widget_defs.clone(), scope, body.clone(), custom_widget_invocation.clone())?;
+                            build_gtk_widget(tree, widget_defs.clone(), super_scope, scope, body.clone(), custom_widget_invocation.clone())?;
                         gtk_container.add(&new_child_widget);
                         created_children.push(new_child_widget);
                     }
@@ -283,6 +300,7 @@ fn build_loop_special_widget(
 fn build_children_special_widget(
     tree: &mut ScopeGraph,
     widget_defs: Rc<HashMap<String, WidgetDefinition>>,
+    super_scope: ScopeIndex,
     calling_scope: ScopeIndex,
     widget_use: ChildrenWidgetUse,
     gtk_container: &gtk::Container,
@@ -309,6 +327,7 @@ fn build_children_special_widget(
                         let new_child_widget = build_gtk_widget(
                             tree,
                             widget_defs.clone(),
+                            super_scope,
                             custom_widget_invocation.scope,
                             nth_child_widget_use.clone(),
                             None,
@@ -327,7 +346,8 @@ fn build_children_special_widget(
         )?;
     } else {
         for child in &custom_widget_invocation.children {
-            let child_widget = build_gtk_widget(tree, widget_defs.clone(), custom_widget_invocation.scope, child.clone(), None)?;
+            let child_widget =
+                build_gtk_widget(tree, widget_defs.clone(), super_scope, custom_widget_invocation.scope, child.clone(), None)?;
             gtk_container.add(&child_widget);
         }
     }

@@ -262,6 +262,13 @@ impl ScopeGraph {
         Ok(())
     }
 
+    pub fn update_value_from_name(&mut self, scope_name: &String, updated_var: &VarName, new_value: DynVal) -> Result<()> {
+        match self.graph.get_index_from_name(scope_name) {
+            Some(scope_index) => self.update_value(scope_index, updated_var, new_value),
+            None => Err(anyhow!("Could not find scope {}", scope_name)),
+        }
+    }
+
     /// Notify a scope that a value has been changed. This triggers the listeners and notifies further subscopes scopes recursively.
     pub fn notify_value_changed(&mut self, scope_index: ScopeIndex, updated_var: &VarName) -> Result<()> {
         // Update scopes that reference the changed variable in their attribute expressions.
@@ -460,6 +467,15 @@ mod internal {
                     "Tried to register a provided attribute edge between two scopes that are not connected in the hierarchy map"
                 );
             }
+        }
+
+        pub fn get_index_from_name(&self, scope_name: &String) -> Option<ScopeIndex> {
+            for (index, scope) in &self.scopes {
+                if &scope.name == scope_name {
+                    return Some(index.clone());
+                }
+            }
+            None
         }
 
         pub fn scope_at(&self, index: ScopeIndex) -> Option<&Scope> {

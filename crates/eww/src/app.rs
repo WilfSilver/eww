@@ -42,7 +42,7 @@ use yuck::{
 #[derive(Debug)]
 pub enum DaemonCommand {
     NoOp,
-    UpdateVars(Vec<(VarName, DynVal)>),
+    UpdateVars(Option<String>, Vec<(VarName, DynVal)>),
     ReloadConfigAndCss(DaemonResponseSender),
     OpenInspector,
     OpenMany {
@@ -155,11 +155,18 @@ impl<B: DisplayBackend> App<B> {
                 DaemonCommand::OpenInspector => {
                     gtk::Window::set_interactive_debugging(true);
                 }
-                DaemonCommand::UpdateVars(mappings) => {
-                    for (var_name, new_value) in mappings {
-                        self.update_global_variable(var_name, new_value);
+                DaemonCommand::UpdateVars(window_name, mappings) => match window_name {
+                    Some(name) => {
+                        for (var_name, new_value) in mappings {
+                            self.update_global_window_variable(&name, var_name, new_value);
+                        }
                     }
-                }
+                    None => {
+                        for (var_name, new_value) in mappings {
+                            self.update_global_variable(var_name, new_value);
+                        }
+                    }
+                },
                 DaemonCommand::ReloadConfigAndCss(sender) => {
                     let mut errors = Vec::new();
 
@@ -337,6 +344,15 @@ impl<B: DisplayBackend> App<B> {
         }
     }
 
+    fn update_global_window_variable(&mut self, window_name: &String, field_name: VarName, value: DynVal) {
+        let scope_name = window_name.clone() + "_global";
+        let result = self.scope_graph.borrow_mut().update_value_from_name(&scope_name, &field_name, value);
+        if let Err(err) = result {
+            error_handling_ctx::print_error(err);
+        }
+        // Due to poll vars not being able to be per window, these do not need to be updated
+    }
+
     /// Close a window and do all the required cleanups in the scope_graph and script_var_handler
     fn close_window(&mut self, instance_id: &str) -> Result<()> {
         if let Some(old_abort_send) = self.window_close_timer_abort_senders.remove(instance_id) {
@@ -394,9 +410,21 @@ impl<B: DisplayBackend> App<B> {
                 scoped_vars_literal,
             )?;
 
+            let global_window_scope = self.scope_graph.borrow_mut().register_new_scope(
+                instance_id.to_string() + "_global",
+                Some(root_index),
+                root_index,
+                self.eww_config
+                    .get_per_window_variables()
+                    .iter()
+                    .map(|(n, v)| (AttrName::from(n.clone()), SimplExpr::Literal(v.clone())))
+                    .collect(),
+            )?;
+
             let root_widget = crate::widgets::build_widget::build_gtk_widget(
                 &mut self.scope_graph.borrow_mut(),
                 Rc::new(self.eww_config.get_widget_definitions().clone()),
+                global_window_scope,
                 window_scope,
                 window_def.widget,
                 None,

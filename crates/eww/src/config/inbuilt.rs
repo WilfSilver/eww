@@ -74,6 +74,7 @@ macro_rules! define_magic_constants {
                 $(VarName::from($name) => VarDefinition {
                     name: VarName::from($name),
                     initial_value: $value,
+                    per_window: false,
                     span: eww_shared_util::span::Span::DUMMY
                 }),*
             }
