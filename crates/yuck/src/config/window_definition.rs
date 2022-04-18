@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{collections::HashMap, fmt::Display};
 
 use crate::{
     config::monitor::MonitorIdentifier,
@@ -9,19 +9,36 @@ use crate::{
         from_ast::{FromAst, FromAstElementContent},
     },
 };
-use eww_shared_util::Span;
+use eww_shared_util::{Span, VarName};
+use simplexpr::{dynval::DynVal, eval::EvalError, SimplExpr};
 
-use super::{backend_window_options::BackendWindowOptions, widget_use::WidgetUse, window_geometry::WindowGeometry};
+use super::{
+    attributes::AttrSpec, backend_window_options::BackendWindowOptions, widget_use::WidgetUse, window_geometry::WindowGeometry,
+};
 
 #[derive(Debug, Clone, serde::Serialize, PartialEq)]
 pub struct WindowDefinition {
     pub name: String,
+    pub expected_args: Vec<AttrSpec>,
+    pub args_span: Span,
     pub geometry: Option<WindowGeometry>,
     pub stacking: WindowStacking,
-    pub monitor: Option<MonitorIdentifier>,
+    pub monitor: Option<SimplExpr>,
     pub widget: WidgetUse,
     pub resizable: bool,
     pub backend_options: BackendWindowOptions,
+}
+
+impl WindowDefinition {
+    pub fn get_monitor(&self, local_variables: &HashMap<VarName, DynVal>) -> Result<Option<MonitorIdentifier>, EvalError> {
+        match &self.monitor {
+            Some(monitor_expr) => match monitor_expr.eval(local_variables) {
+                Ok(val) => Ok(Some(MonitorIdentifier::from_dynval(&val)?)),
+                Err(err) => Err(err),
+            },
+            None => Ok(None),
+        }
+    }
 }
 
 impl FromAstElementContent for WindowDefinition {
@@ -29,15 +46,17 @@ impl FromAstElementContent for WindowDefinition {
 
     fn from_tail<I: Iterator<Item = Ast>>(_span: Span, mut iter: AstIterator<I>) -> DiagResult<Self> {
         let (_, name) = iter.expect_symbol()?;
+        let (args_span, expected_args) = iter.expect_array().unwrap_or((Span::DUMMY, Vec::new()));
+        let expected_args = expected_args.into_iter().map(AttrSpec::from_ast).collect::<DiagResult<_>>()?;
         let mut attrs = iter.expect_key_values()?;
-        let monitor = attrs.primitive_optional("monitor")?;
+        let monitor = attrs.ast_optional("monitor")?;
         let resizable = attrs.primitive_optional("resizable")?.unwrap_or(true);
         let stacking = attrs.primitive_optional("stacking")?.unwrap_or(WindowStacking::Foreground);
         let geometry = attrs.ast_optional("geometry")?;
         let backend_options = BackendWindowOptions::from_attrs(&mut attrs)?;
         let widget = iter.expect_any().map_err(DiagError::from).and_then(WidgetUse::from_ast)?;
         iter.expect_done()?;
-        Ok(Self { name, monitor, resizable, widget, stacking, geometry, backend_options })
+        Ok(Self { name, expected_args, args_span, monitor, resizable, widget, stacking, geometry, backend_options })
     }
 }
 
@@ -96,3 +115,5 @@ impl std::str::FromStr for WindowStacking {
         }
     }
 }
+
+static EXPECTED_WINDOW_DEF_FORMAT: &str = r#"Expected format: `(defwindow name [] (contained-widgets))`"#;
