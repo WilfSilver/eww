@@ -147,6 +147,7 @@ Config(
     VarName("some_var"): VarDefinition(
       name: VarName("some_var"),
       initial_value: DynVal("bla", Span(89, 94, 0)),
+      per_window: false,
       span: Span(72, 95, 0),
     ),
   },
