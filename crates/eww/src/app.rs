@@ -13,7 +13,7 @@ use crate::{
 };
 use anyhow::anyhow;
 use codespan_reporting::files::Files;
-use eww_shared_util::{Span, VarName};
+use eww_shared_util::{AttrName, Span, VarName};
 use gdk::Monitor;
 use glib::ObjectExt;
 use itertools::Itertools;
