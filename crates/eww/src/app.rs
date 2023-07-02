@@ -344,8 +344,8 @@ impl<B: DisplayBackend> App<B> {
         }
     }
 
-    fn update_global_window_variable(&mut self, window_name: &String, field_name: VarName, value: DynVal) {
-        let scope_name = window_name.clone() + "_global";
+    fn update_global_window_variable(&mut self, window_name: &str, field_name: VarName, value: DynVal) {
+        let scope_name = window_name.to_string() + "_global";
         let result = self.scope_graph.borrow_mut().update_value_from_name(&scope_name, &field_name, value);
         if let Err(err) = result {
             error_handling_ctx::print_error(err);
