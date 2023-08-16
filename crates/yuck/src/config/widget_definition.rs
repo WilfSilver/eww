@@ -10,7 +10,7 @@ use crate::{
 };
 use eww_shared_util::{Span, Spanned};
 
-use super::{widget_use::WidgetUse, attributes::AttrSpec};
+use super::{attributes::AttrSpec, widget_use::WidgetUse};
 
 #[derive(Debug, PartialEq, Eq, Clone, serde::Serialize)]
 pub struct WidgetDefinition {

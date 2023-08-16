@@ -29,7 +29,8 @@ pub enum Error {
     EvalError(#[from] EvalError),
 }
 
-/// Backend-specific options of a window that are backend
+/// Backend-specific options of a window
+/// Unevaluated form of [`BackendWindowOptions`]
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
 pub struct BackendWindowOptionsDef {
     pub wayland: WlBackendWindowOptionsDef,
@@ -194,10 +195,11 @@ impl std::str::FromStr for Side {
     }
 }
 
+/// Unevaluated form of [`X11StrutDefinition`]
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct X11StrutDefinitionExpr {
     pub side: Option<SimplExpr>,
-    pub dist: SimplExpr,
+    pub distance: SimplExpr,
 }
 
 impl X11StrutDefinitionExpr {
@@ -207,7 +209,7 @@ impl X11StrutDefinitionExpr {
                 Some(expr) => Side::from_dynval(&expr.eval(local_variables)?)?,
                 None => Side::default(),
             },
-            dist: NumWithUnit::from_dynval(&self.dist.eval(local_variables)?)?,
+            distance: NumWithUnit::from_dynval(&self.distance.eval(local_variables)?)?,
         })
     }
 }
@@ -218,12 +220,12 @@ impl FromAstElementContent for X11StrutDefinitionExpr {
     fn from_tail<I: Iterator<Item = Ast>>(_span: Span, mut iter: AstIterator<I>) -> DiagResult<Self> {
         let mut attrs = iter.expect_key_values()?;
         iter.expect_done().map_err(DiagError::from).note("Check if you are missing a colon in front of a key")?;
-        Ok(X11StrutDefinitionExpr { side: attrs.ast_optional("side")?, dist: attrs.ast_required("distance")? })
+        Ok(X11StrutDefinitionExpr { side: attrs.ast_optional("side")?, distance: attrs.ast_required("distance")? })
     }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Default, serde::Serialize)]
 pub struct X11StrutDefinition {
     pub side: Side,
-    pub dist: NumWithUnit,
+    pub distance: NumWithUnit,
 }

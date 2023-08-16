@@ -109,6 +109,7 @@ impl std::str::FromStr for AnchorPoint {
     }
 }
 
+/// Unevaluated variant of [`Coords`]
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 pub struct CoordsDef {
     pub x: Option<SimplExpr>,
@@ -144,6 +145,7 @@ fn convert_to_num_with_unit(
     })
 }
 
+/// Unevaluated variant of [`WindowGeometry`]
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 pub struct WindowGeometryDef {
     pub anchor_point: Option<SimplExpr>,
