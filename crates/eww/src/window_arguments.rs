@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::{bail, Result};
 use eww_shared_util::VarName;
 use simplexpr::dynval::DynVal;
 use std::{
@@ -17,7 +17,7 @@ use yuck::{
 #[derive(Debug, Clone)]
 pub struct WindowArguments {
     /// Name of the window as defined in the eww config
-    pub config_name: String,
+    pub window_name: String,
     /// Instance ID of the window
     pub instance_id: String,
     pub anchor: Option<AnchorPoint>,
@@ -31,7 +31,7 @@ pub struct WindowArguments {
 impl WindowArguments {
     pub fn new_from_args(id: String, config_name: String, mut args: HashMap<VarName, DynVal>) -> Result<Self> {
         let initiator = WindowArguments {
-            config_name,
+            window_name: config_name,
             instance_id: id,
             pos: WindowArguments::extract_value_from_args::<Coords>("pos", &mut args)?,
             size: WindowArguments::extract_value_from_args::<Coords>("size", &mut args)?,
@@ -48,50 +48,38 @@ impl WindowArguments {
         args.remove(&VarName(name.to_string())).map(|x| T::from_str(&x.0)).transpose()
     }
 
+    /// Return a hashmap of all arguments the window was passed and expected, returning
+    /// an error in case required arguments are missing or unexpected arguments are passed.
     pub fn get_local_window_variables(&self, window_def: &WindowDefinition) -> Result<HashMap<VarName, DynVal>> {
         let expected_args: HashSet<&String> = window_def.expected_args.iter().map(|x| &x.name.0).collect();
         let mut local_variables: HashMap<VarName, DynVal> = HashMap::new();
 
-        // Inserts these first so they can be overridden
+        // Ensure that the arguments passed to the window that are already interpreted by eww (id, screen)
+        // are set to the correct values
         if expected_args.contains(&"id".to_string()) {
             local_variables.insert(VarName::from("id"), DynVal::from(self.instance_id.clone()));
         }
-        if self.monitor.is_some() && expected_args.contains(&"screen".to_string()) {
-            let mon_dyn = match self.monitor.clone().unwrap() {
-                MonitorIdentifier::Numeric(x) => DynVal::from(x),
-                MonitorIdentifier::Name(x) => DynVal::from(x),
-            };
-            local_variables.insert(VarName::from("screen"), mon_dyn);
+        if let Some(monitor) = &self.monitor && expected_args.contains(&"screen".to_string()) {
+            local_variables.insert(VarName::from("screen"), DynVal::from(monitor));
         }
 
         local_variables.extend(self.args.clone().into_iter());
 
         for attr in &window_def.expected_args {
             let name = VarName::from(attr.name.clone());
-
-            // This is here to get around the map_entry warning
-            let mut inserted = false;
-            local_variables.entry(name).or_insert_with(|| {
-                inserted = true;
-                DynVal::from_string(String::new())
-            });
-
-            if inserted && !attr.optional {
-                return Err(anyhow!("Error, {} was required when creating {} but was not given", attr.name, self.config_name));
+            if !local_variables.contains_key(&name) && !attr.optional {
+                bail!("Error, missing argument '{}' when creating window with id '{}'", attr.name, self.instance_id);
             }
         }
 
         if local_variables.len() != window_def.expected_args.len() {
-            let unexpected_vars: Vec<VarName> = local_variables
-                .iter()
-                .filter_map(|(n, _)| if !expected_args.contains(&n.0) { Some(n.clone()) } else { None })
-                .collect();
-            return Err(anyhow!(
-                "'{}' {} unexpectedly defined when creating window {}",
-                unexpected_vars.join(","),
-                if unexpected_vars.len() == 1 { "was" } else { "were" },
-                self.config_name
-            ));
+            let unexpected_vars: Vec<_> =
+                local_variables.iter().map(|(name, _)| name.clone()).filter(|n| !expected_args.contains(&n.0)).collect();
+            bail!(
+                "variables {} unexpectedly defined when creating window with id '{}'",
+                unexpected_vars.join(", "),
+                self.instance_id,
+            );
         }
 
         Ok(local_variables)

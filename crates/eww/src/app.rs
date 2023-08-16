@@ -234,7 +234,7 @@ impl<B: DisplayBackend> App<B> {
                     } else {
                         self.open_window(&WindowArguments {
                             instance_id,
-                            config_name: window_name,
+                            window_name,
                             pos,
                             size,
                             monitor,
@@ -369,7 +369,7 @@ impl<B: DisplayBackend> App<B> {
     fn open_window(&mut self, window_args: &WindowArguments) -> Result<()> {
         let instance_id = &window_args.instance_id;
         self.failed_windows.remove(instance_id);
-        log::info!("Opening window {} as '{}'", window_args.config_name, instance_id);
+        log::info!("Opening window {} as '{}'", window_args.window_name, instance_id);
 
         // if an instance of this is already running, close it
         if self.open_windows.contains_key(instance_id) {
@@ -379,7 +379,7 @@ impl<B: DisplayBackend> App<B> {
         self.window_argumentss.insert(instance_id.to_string(), window_args.clone());
 
         let open_result: Result<_> = try {
-            let window_name: &str = &window_args.config_name;
+            let window_name: &str = &window_args.window_name;
 
             let window_def = self.eww_config.get_window(window_name)?.clone();
             assert_eq!(window_def.name, window_name, "window definition name did not equal the called window");

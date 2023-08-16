@@ -23,6 +23,15 @@ impl MonitorIdentifier {
     }
 }
 
+impl From<&MonitorIdentifier> for DynVal {
+    fn from(val: &MonitorIdentifier) -> Self {
+        match val {
+            MonitorIdentifier::Numeric(n) => (*n).into(),
+            MonitorIdentifier::Name(n) => n.to_string().into(),
+        }
+    }
+}
+
 impl fmt::Display for MonitorIdentifier {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
