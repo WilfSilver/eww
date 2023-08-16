@@ -43,6 +43,7 @@ pub struct WindowDefinition {
 }
 
 impl WindowDefinition {
+    /// Evaluate the `monitor` field of the window definition
     pub fn eval_monitor(&self, local_variables: &HashMap<VarName, DynVal>) -> Result<Option<MonitorIdentifier>, EvalError> {
         Ok(match &self.monitor {
             Some(monitor_expr) => Some(MonitorIdentifier::from_dynval(&monitor_expr.eval(local_variables)?)?),
@@ -50,6 +51,7 @@ impl WindowDefinition {
         })
     }
 
+    /// Evaluate the `resizable` field of the window definition
     pub fn eval_resizable(&self, local_variables: &HashMap<VarName, DynVal>) -> Result<bool, EvalError> {
         Ok(match &self.resizable {
             Some(expr) => expr.eval(local_variables)?.as_bool()?,
@@ -57,6 +59,7 @@ impl WindowDefinition {
         })
     }
 
+    /// Evaluate the `stacking` field of the window definition
     pub fn eval_stacking(
         &self,
         local_variables: &HashMap<VarName, DynVal>,

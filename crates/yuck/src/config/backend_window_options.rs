@@ -75,6 +75,7 @@ pub struct X11BackendWindowOptions {
     pub struts: X11StrutDefinition,
 }
 
+/// Unevaluated form of [`X11BackendWindowOptions`]
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct X11BackendWindowOptionsDef {
     pub sticky: Option<SimplExpr>,
@@ -111,6 +112,7 @@ pub struct WlBackendWindowOptions {
     pub namespace: Option<String>,
 }
 
+/// Unevaluated form of [`WlBackendWindowOptions`]
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct WlBackendWindowOptionsDef {
     pub exclusive: Option<SimplExpr>,

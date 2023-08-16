@@ -18,7 +18,7 @@ use gdk::Monitor;
 use glib::ObjectExt;
 use itertools::Itertools;
 use once_cell::sync::Lazy;
-use simplexpr::dynval::DynVal;
+use simplexpr::{dynval::DynVal, SimplExpr};
 use std::{
     cell::RefCell,
     collections::{HashMap, HashSet},
@@ -388,11 +388,13 @@ impl<B: DisplayBackend> App<B> {
 
             let root_index = self.scope_graph.borrow().root_index;
 
+            let scoped_vars_literal = initiator.get_scoped_vars().into_iter().map(|(k, v)| (k, SimplExpr::Literal(v))).collect();
+
             let window_scope = self.scope_graph.borrow_mut().register_new_scope(
                 window_name.to_string(),
                 Some(root_index),
                 root_index,
-                initiator.get_scoped_vars(),
+                scoped_vars_literal,
             )?;
 
             let root_widget = crate::widgets::build_widget::build_gtk_widget(
