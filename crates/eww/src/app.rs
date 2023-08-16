@@ -198,7 +198,7 @@ impl<B: DisplayBackend> App<B> {
                                 self.close_window(id)
                             } else {
                                 log::debug!("Config: {}, id: {}", config_name, id);
-                                let window_args: Vec<(VarName, DynVal)> = args
+                                let window_args = args
                                     .iter()
                                     .filter(|(win_id, ..)| win_id.is_empty() || win_id == id)
                                     .map(|(_, n, v)| (n.clone(), v.clone()))
@@ -240,7 +240,7 @@ impl<B: DisplayBackend> App<B> {
                             monitor,
                             anchor,
                             duration,
-                            args: args.unwrap_or_default(),
+                            args: args.unwrap_or_default().into_iter().collect(),
                         })
                     };
 

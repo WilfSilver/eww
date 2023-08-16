@@ -21,7 +21,7 @@ pub struct WindowArguments {
     /// Instance ID of the window
     pub instance_id: String,
     pub anchor: Option<AnchorPoint>,
-    pub args: Vec<(VarName, DynVal)>,
+    pub args: HashMap<VarName, DynVal>,
     pub duration: Option<std::time::Duration>,
     pub monitor: Option<MonitorIdentifier>,
     pub pos: Option<Coords>,
@@ -29,7 +29,7 @@ pub struct WindowArguments {
 }
 
 impl WindowArguments {
-    pub fn new_from_args(id: String, config_name: String, mut args: Vec<(VarName, DynVal)>) -> Result<Self> {
+    pub fn new_from_args(id: String, config_name: String, mut args: HashMap<VarName, DynVal>) -> Result<Self> {
         let initiator = WindowArguments {
             config_name,
             instance_id: id,
@@ -44,17 +44,8 @@ impl WindowArguments {
         Ok(initiator)
     }
 
-    pub fn extract_value_from_args<T: FromStr>(name: &str, args: &mut Vec<(VarName, DynVal)>) -> Result<Option<T>, T::Err> {
-        let var_name = name.to_string();
-        let pos = args.iter().position(|(n, _)| n.0 == var_name);
-
-        if let Some(pos) = pos {
-            let (_, val) = args.remove(pos);
-            let converted_val = T::from_str(&val.0)?;
-            Ok(Some(converted_val))
-        } else {
-            Ok(None)
-        }
+    pub fn extract_value_from_args<T: FromStr>(name: &str, args: &mut HashMap<VarName, DynVal>) -> Result<Option<T>, T::Err> {
+        args.remove(&VarName(name.to_string())).map(|x| T::from_str(&x.0)).transpose()
     }
 
     pub fn get_local_window_variables(&self, window_def: &WindowDefinition) -> Result<HashMap<VarName, DynVal>> {

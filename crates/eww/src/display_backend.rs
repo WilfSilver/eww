@@ -171,12 +171,7 @@ mod platform_x11 {
             Ok(X11BackendConnection { conn, root_window: screen.root, atoms })
         }
 
-        fn set_xprops_for(
-            &self,
-            window: &gtk::Window,
-            monitor: Monitor,
-            window_init: &WindowInitiator,
-        ) -> Result<()> {
+        fn set_xprops_for(&self, window: &gtk::Window, monitor: Monitor, window_init: &WindowInitiator) -> Result<()> {
             let monitor_rect = monitor.geometry();
             let scale_factor = monitor.scale_factor() as u32;
             let gdk_window = window.window().context("Couldn't get gdk window from gtk window")?;

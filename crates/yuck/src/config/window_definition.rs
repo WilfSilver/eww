@@ -10,10 +10,15 @@ use crate::{
     },
 };
 use eww_shared_util::{Span, VarName};
-use simplexpr::{dynval::{DynVal, FromDynVal}, eval::EvalError, SimplExpr};
+use simplexpr::{
+    dynval::{DynVal, FromDynVal},
+    eval::EvalError,
+    SimplExpr,
+};
 
 use super::{
-    attributes::AttrSpec, backend_window_options::BackendWindowOptionsDef, widget_use::WidgetUse, window_geometry::WindowGeometryDef,
+    attributes::AttrSpec, backend_window_options::BackendWindowOptionsDef, widget_use::WidgetUse,
+    window_geometry::WindowGeometryDef,
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -52,12 +57,15 @@ impl WindowDefinition {
         })
     }
 
-    pub fn eval_stacking(&self, local_variables: &HashMap<VarName, DynVal>) -> Result<WindowStacking, WindowStackingConversionError> {
+    pub fn eval_stacking(
+        &self,
+        local_variables: &HashMap<VarName, DynVal>,
+    ) -> Result<WindowStacking, WindowStackingConversionError> {
         match &self.stacking {
             Some(stacking_expr) => match stacking_expr.eval(local_variables) {
                 Ok(val) => Ok(WindowStacking::from_dynval(&val)?),
                 Err(err) => Err(WindowStackingConversionError::EvalError(err)),
-            }
+            },
             None => Ok(WindowStacking::Foreground),
         }
     }
@@ -137,5 +145,3 @@ impl std::str::FromStr for WindowStacking {
         }
     }
 }
-
-static EXPECTED_WINDOW_DEF_FORMAT: &str = r#"Expected format: `(defwindow name [] (contained-widgets))`"#;
