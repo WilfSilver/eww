@@ -85,6 +85,9 @@ pub enum DaemonCommand {
 /// An opened window.
 #[derive(Debug)]
 pub struct EwwWindow {
+    /// Every window has an id, uniquely identifying it.
+    /// If no specific ID was specified whilst starting the window,
+    /// this will be the same as the window name.
     pub instance_id: String,
     pub name: String,
     pub scope_index: ScopeIndex,
@@ -135,7 +138,7 @@ impl<B> std::fmt::Debug for App<B> {
             .field("eww_config", &self.eww_config)
             .field("open_windows", &self.open_windows)
             .field("failed_windows", &self.failed_windows)
-            .field("window_argumentss", &self.window_argumentss)
+            .field("window_arguments", &self.window_argumentss)
             .field("paths", &self.paths)
             .finish()
     }
@@ -197,13 +200,8 @@ impl<B: DisplayBackend> App<B> {
                                 log::debug!("Config: {}, id: {}", config_name, id);
                                 let window_args: Vec<(VarName, DynVal)> = args
                                     .iter()
-                                    .filter_map(|(win_id, n, v)| {
-                                        if win_id.is_empty() || win_id == id {
-                                            Some((n.clone(), v.clone()))
-                                        } else {
-                                            None
-                                        }
-                                    })
+                                    .filter(|(win_id, ..)| win_id.is_empty() || win_id == id)
+                                    .map(|(_, n, v)| (n.clone(), v.clone()))
                                     .collect();
                                 self.open_window(&WindowArguments::new_from_args(
                                     id.to_string(),
@@ -227,23 +225,23 @@ impl<B: DisplayBackend> App<B> {
                     sender,
                     args,
                 } => {
-                    let id = instance_id.unwrap_or_else(|| window_name.clone());
+                    let instance_id = instance_id.unwrap_or_else(|| window_name.clone());
 
-                    let is_open = self.open_windows.contains_key(&id);
+                    let is_open = self.open_windows.contains_key(&instance_id);
 
                     let result = if should_toggle && is_open {
-                        self.close_window(&id)
+                        self.close_window(&instance_id)
                     } else {
-                        self.open_window(&WindowArguments::new(
-                            id,
-                            window_name,
+                        self.open_window(&WindowArguments {
+                            instance_id,
+                            config_name: window_name,
                             pos,
                             size,
                             monitor,
                             anchor,
                             duration,
-                            args.unwrap_or_default(),
-                        ))
+                            args: args.unwrap_or_default(),
+                        })
                     };
 
                     sender.respond_with_result(result)?;
@@ -344,13 +342,13 @@ impl<B: DisplayBackend> App<B> {
 
     /// Close a window and do all the required cleanups in the scope_graph and script_var_handler
     fn close_window(&mut self, instance_id: &str) -> Result<()> {
-        if let Some(old_abort_send) = self.window_close_timer_abort_senders.remove(window_name) {
+        if let Some(old_abort_send) = self.window_close_timer_abort_senders.remove(instance_id) {
             _ = old_abort_send.send(());
         }
         let eww_window = self
             .open_windows
             .remove(instance_id)
-            .with_context(|| format!("Tried to close window named '{}', but no such window was open", instance_id))?;
+            .with_context(|| format!("Tried to close window with id '{instance_id}', but no such window was open"))?;
 
         let scope_index = eww_window.scope_index;
         eww_window.close();
@@ -369,7 +367,7 @@ impl<B: DisplayBackend> App<B> {
     }
 
     fn open_window(&mut self, window_args: &WindowArguments) -> Result<()> {
-        let instance_id = &window_args.id;
+        let instance_id = &window_args.instance_id;
         self.failed_windows.remove(instance_id);
         log::info!("Opening window {} as '{}'", window_args.config_name, instance_id);
 
@@ -407,7 +405,7 @@ impl<B: DisplayBackend> App<B> {
 
             root_widget.style_context().add_class(window_name);
 
-            let monitor = get_monitor(initiator.monitor.clone())?;
+            let monitor = get_gdk_monitor(initiator.monitor.clone())?;
             let mut eww_window = initialize_window::<B>(&initiator, monitor, root_widget, window_scope)?;
             eww_window.gtk_window.style_context().add_class(window_name);
 
@@ -488,19 +486,13 @@ impl<B: DisplayBackend> App<B> {
         self.eww_config = config;
         self.scope_graph.borrow_mut().clear(self.eww_config.generate_initial_state()?);
 
-        let instances: Vec<String> =
+        let open_window_ids: Vec<String> =
             self.open_windows.keys().cloned().chain(self.failed_windows.iter().cloned()).dedup().collect();
-        let initiators = self.window_argumentss.clone();
-        for instance_id in &instances {
-            let window_arguments;
-            match initiators.get(instance_id) {
-                Some(x) => window_arguments = x,
-                None => {
-                    return Err(anyhow!("Cannot reopen window, initial parameters were not saved correctly for {}", instance_id))
-                }
-            };
-
-            self.open_window(window_arguments)?;
+        for instance_id in &open_window_ids {
+            let window_arguments = self.window_argumentss.get(instance_id).with_context(|| {
+                format!("Cannot reopen window, initial parameters were not saved correctly for {instance_id}")
+            })?;
+            self.open_window(&window_arguments.clone())?;
         }
         Ok(())
     }
@@ -611,7 +603,7 @@ fn on_screen_changed(window: &gtk::Window, _old_screen: Option<&gdk::Screen>) {
 }
 
 /// Get the monitor geometry of a given monitor, or the default if none is given
-fn get_monitor(identifier: Option<MonitorIdentifier>) -> Result<Monitor> {
+fn get_gdk_monitor(identifier: Option<MonitorIdentifier>) -> Result<Monitor> {
     let display = gdk::Display::default().expect("could not get default display");
     let monitor = match identifier {
         Some(ident) => {

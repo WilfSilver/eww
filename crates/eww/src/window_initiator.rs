@@ -12,7 +12,7 @@ use yuck::config::{
 use crate::window_arguments::WindowArguments;
 
 /// This stores all the information required to create a window and is created
-/// via combining information from the WindowDefinition and the WindowInitiator
+/// via combining information from the [`WindowDefinition`] and the [`WindowInitiator`]
 #[derive(Debug, Clone)]
 pub struct WindowInitiator {
     pub backend_options: BackendWindowOptions,
@@ -41,7 +41,7 @@ impl WindowInitiator {
         Ok(WindowInitiator {
             backend_options,
             geometry,
-            id: args.id.clone(),
+            id: args.instance_id.clone(),
             local_variables: vars,
             monitor,
             name: window_def.name.clone(),

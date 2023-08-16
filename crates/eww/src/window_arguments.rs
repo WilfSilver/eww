@@ -12,38 +12,27 @@ use yuck::{
 
 /// This stores the arguments given in the command line to create a window
 /// While creating a window, we combine this with information from the
-/// WindowDefinition to create a WindowInitiator, which stores all the
+/// [`WindowDefinition`] to create a [WindowInitiator](`crate::window_initiator::WindowInitiator`), which stores all the
 /// information required to start a window
 #[derive(Debug, Clone)]
 pub struct WindowArguments {
+    /// Name of the window as defined in the eww config
+    pub config_name: String,
+    /// Instance ID of the window
+    pub instance_id: String,
     pub anchor: Option<AnchorPoint>,
     pub args: Vec<(VarName, DynVal)>,
-    pub config_name: String,
     pub duration: Option<std::time::Duration>,
-    pub id: String,
     pub monitor: Option<MonitorIdentifier>,
     pub pos: Option<Coords>,
     pub size: Option<Coords>,
 }
 
 impl WindowArguments {
-    pub fn new(
-        id: String,
-        config_name: String,
-        pos: Option<Coords>,
-        size: Option<Coords>,
-        monitor: Option<MonitorIdentifier>,
-        anchor: Option<AnchorPoint>,
-        duration: Option<std::time::Duration>,
-        args: Vec<(VarName, DynVal)>,
-    ) -> Self {
-        WindowArguments { id, config_name, pos, size, monitor, anchor, duration, args }
-    }
-
     pub fn new_from_args(id: String, config_name: String, mut args: Vec<(VarName, DynVal)>) -> Result<Self> {
         let initiator = WindowArguments {
             config_name,
-            id,
+            instance_id: id,
             pos: WindowArguments::extract_value_from_args::<Coords>("pos", &mut args)?,
             size: WindowArguments::extract_value_from_args::<Coords>("size", &mut args)?,
             monitor: WindowArguments::extract_value_from_args::<MonitorIdentifier>("screen", &mut args)?,
@@ -59,8 +48,8 @@ impl WindowArguments {
         let var_name = name.to_string();
         let pos = args.iter().position(|(n, _)| n.0 == var_name);
 
-        if let Some(unwrapped_pos) = pos {
-            let (_, val) = args.remove(unwrapped_pos);
+        if let Some(pos) = pos {
+            let (_, val) = args.remove(pos);
             let converted_val = T::from_str(&val.0)?;
             Ok(Some(converted_val))
         } else {
@@ -74,7 +63,7 @@ impl WindowArguments {
 
         // Inserts these first so they can be overridden
         if expected_args.contains(&"id".to_string()) {
-            local_variables.insert(VarName::from("id"), DynVal::from(self.id.clone()));
+            local_variables.insert(VarName::from("id"), DynVal::from(self.instance_id.clone()));
         }
         if self.monitor.is_some() && expected_args.contains(&"screen".to_string()) {
             let mon_dyn = match self.monitor.clone().unwrap() {
