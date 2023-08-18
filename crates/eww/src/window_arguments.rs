@@ -37,7 +37,7 @@ impl WindowArguments {
             size: WindowArguments::extract_value_from_args::<Coords>("size", &mut args)?,
             monitor: WindowArguments::extract_value_from_args::<MonitorIdentifier>("screen", &mut args)?,
             anchor: WindowArguments::extract_value_from_args::<AnchorPoint>("anchor", &mut args)?,
-            duration: WindowArguments::extract_value_from_args::<std::time::Duration>("duration", &mut args)?,
+            duration: WindowArguments::extract_value_from_args::<DynVal>("duration", &mut args)?.map(|x| x.as_duration()).transpose()?,
             args,
         };
 
