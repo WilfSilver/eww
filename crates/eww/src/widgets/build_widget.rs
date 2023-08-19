@@ -280,8 +280,14 @@ fn build_loop_special_widget(
                             },
                         )?;
                         created_child_scopes.push(scope);
-                        let new_child_widget =
-                            build_gtk_widget(tree, widget_defs.clone(), super_scope, scope, body.clone(), custom_widget_invocation.clone())?;
+                        let new_child_widget = build_gtk_widget(
+                            tree,
+                            widget_defs.clone(),
+                            super_scope,
+                            scope,
+                            body.clone(),
+                            custom_widget_invocation.clone(),
+                        )?;
                         gtk_container.add(&new_child_widget);
                         created_children.push(new_child_widget);
                     }
